@@ -21,7 +21,10 @@ void* func(void*arg)
         while (shop[j] > 0)
             {   
                 pthread_mutex_lock(&mutex);
-                shop[j] -= 1000;
+                if (shop[j] > 0)
+                {
+                    shop[j] -= 1000;
+                }
                 pthread_mutex_unlock(&mutex);
                 printf("%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
                 sleep(1);
