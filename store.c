@@ -3,8 +3,11 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#define COUNT_THREAD 3
+#define SHOP_SIZE 1000
+#define LOAD_SIZE 500
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-pthread_mutex_t mutex;
 int shop[5] = {10000, 10000, 10000, 10000, 10000};
 
 
@@ -23,15 +26,13 @@ void* func(void*arg)
                 pthread_mutex_lock(&mutex);
                 if (shop[j] > 0)
                 {
-                    shop[j] -= 1000;
+                    shop[j] -= SHOP_SIZE;
                 }
                 pthread_mutex_unlock(&mutex);
                 printf("%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
                 sleep(1);
             }
-    }
-     
-    
+    } 
 }
 
 void* loader()
@@ -42,7 +43,7 @@ void* loader()
         {
         
             pthread_mutex_lock(&mutex);
-            shop[j] += 500;
+            shop[j] += LOAD_SIZE;
             pthread_mutex_unlock(&mutex);
             printf("shop[%d] + load = %d\n", j, shop[j]);
             sleep(2);
@@ -52,17 +53,12 @@ void* loader()
 
 int main()
 {
-    pthread_t buyer[3];
-    if (pthread_mutex_init(&mutex, NULL) != 0)
-    {
-        perror("не удалось инициализировать mutex\n");
-    }
-    int index[3];
+    pthread_t buyer[COUNT_THREAD];
+    int index[COUNT_THREAD];
     for (int i = 0; i < 3; i++)
     {
         index[i] = i + 1;
         pthread_create(&buyer[i], NULL, &func, &index[i]);
-        //sleep(1);
     }
     pthread_t load;
     pthread_create(&load, NULL, loader, NULL);
