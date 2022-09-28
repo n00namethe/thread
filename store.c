@@ -6,33 +6,44 @@
 #define COUNT_THREAD 3
 #define SHOP_SIZE 1000
 #define LOAD_SIZE 500
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+#define N 5
+#define COUNT_STORE 10000
+pthread_mutex_t mutex[N] = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_loader = PTHREAD_MUTEX_INITIALIZER;
 
-int shop[5] = {10000, 10000, 10000, 10000, 10000};
-
+int shop[N] = {COUNT_STORE, COUNT_STORE, COUNT_STORE, COUNT_STORE, COUNT_STORE};
 
 void* func(void*arg)
 {
     int *i = (int*)arg;
     printf("Я поток № %d зашел в func\n", *i);
-    for (int j = 1; j < 6; j++)
-    {
-        if (shop[j] == 0)
+    while (1)
+    {    
+        for (int j = 0; j < N; j++)
         {
-            exit(1);
-        }
-        while (shop[j] > 0)
-            {   
-                pthread_mutex_lock(&mutex);
-                if (shop[j] > 0)
+            if (pthread_mutex_trylock(&mutex[j]) == 0)
+            {
+                if ((shop[j] == 0) || (shop[j] == LOAD_SIZE))
+                {
+                    printf("sold out dates. shop[%d] = %d\n", j, shop[j]);
+                    goto end;
+                }
+                else
                 {
                     shop[j] -= SHOP_SIZE;
+                    printf("thread №%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
+                    usleep(300000);
                 }
-                pthread_mutex_unlock(&mutex);
-                printf("%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
-                sleep(1);
+                pthread_mutex_unlock(&mutex[j]);
+                break;
             }
-    } 
+            else
+            {
+                printf("mutex don't lock, wait...\n");
+            }
+        }
+    }
+    end: return 0;
 }
 
 void* loader()
@@ -42,13 +53,14 @@ void* loader()
         while(shop[j] > 0)
         {
         
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex_loader);    
             shop[j] += LOAD_SIZE;
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex_loader);
             printf("shop[%d] + load = %d\n", j, shop[j]);
             sleep(2);
         }
     }
+    return 0;
 }
 
 int main()
@@ -68,9 +80,12 @@ int main()
         pthread_join(buyer[j], NULL);
         pthread_cancel(buyer[j]);
     }
-    if (pthread_mutex_destroy(&mutex) != 0)
+    for (int i = 0; i > 4; i++)
     {
-        perror("Не удалось уничтожить mutex\n");
+        if (pthread_mutex_destroy(&mutex[i]) != 0)
+        {
+            perror("Не удалось уничтожить mutex\n");
+        }
     }
     pthread_cancel(load);
     return 0;
