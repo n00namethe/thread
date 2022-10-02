@@ -5,7 +5,7 @@
 
 #define COUNT_THREAD 3
 #define SHOP_SIZE 1000
-#define LOAD_SIZE 500
+#define LOAD_SIZE 1000
 #define CONST_FIVE 5
 #define CONST_THREE 3
 #define COUNT_STORE 10000
@@ -17,25 +17,27 @@ int shop[CONST_FIVE] = {COUNT_STORE, COUNT_STORE, COUNT_STORE, COUNT_STORE, COUN
 void* func(void*arg)
 {
     int *i = (int*)arg;
-    printf("Я поток № %d зашел в func\n", *i);   
-    for (int j = 0; j < CONST_FIVE; j++)
+    printf("Я поток № %d зашел в func\n", *i);
+    size_t j; 
+    for (j = 0; j < CONST_FIVE; j++)
     {
-        if (shop[j] - LOAD_SIZE <= 0)
+        if (pthread_mutex_trylock(&mutex[j]) == 0)
         {
-            printf("sold out dates. shop[%d] = %d\n", j, shop[j]);
-            break;
-        }
+            if (shop[j] <= 0)
+            {
+                printf("sold out dates. shop[%ld] = %d\n", j, shop[j]);
+            }
+            else
+            {
+                shop[j] -= SHOP_SIZE;
+                printf("thread №%d.\t shop[%ld]\t = \t%d\n", *i, j, shop[j]);
+                sleep(1);
+            }
+            pthread_mutex_unlock(&mutex[j]);
+        } 
         else
         {
-            pthread_mutex_lock(&mutex[j]);
-            shop[j] -= SHOP_SIZE;
-            printf("thread №%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
-            usleep(300000);
-            pthread_mutex_unlock(&mutex[j]);
-        }
-        if ((j == CONST_FIVE - 1) && (shop[j] != 0))
-        {
-            j = -1;
+            printf("no store available for buyer, next..\n");
         }
     }
     return NULL;
@@ -43,23 +45,26 @@ void* func(void*arg)
 
 void* loader()
 {
-    for (int j = 0; j < CONST_FIVE; j++)
+    size_t j;
+    for (j = 0; j < CONST_FIVE; j++)
     { 
-        if(shop[j] - LOAD_SIZE >= LOAD_SIZE)
+        if (pthread_mutex_trylock(&mutex_loader) == 0)
         {
-            pthread_mutex_lock(&mutex_loader);
-            shop[j] += LOAD_SIZE;
+            if (shop[j] - LOAD_SIZE < 0)
+            {
+                break;
+            }
+            else
+            {
+                shop[j] += LOAD_SIZE;
+                sleep(2);
+                printf("shop[%ld] + load = %d\n", j, shop[j]);
+            }
             pthread_mutex_unlock(&mutex_loader);
         }
         else
         {
-            break;
-        }
-        usleep(200000);
-        printf("shop[%d] + load = %d\n", j, shop[j]);
-        if ((j == CONST_FIVE - 1) && (shop[j] != 0))
-        {
-            j = -1;
+            printf("no store available for loader, next try\n");
         }
     }
     return 0;
@@ -67,21 +72,30 @@ void* loader()
 
 int main()
 {
+    size_t i;
     pthread_t buyer[COUNT_THREAD];
-    int index[COUNT_THREAD];
-    for (int i = 0; i < CONST_THREE; i++)
-    {
-        index[i] = i + 1;
-        pthread_create(&buyer[i], NULL, &func, &index[i]);
-    }
     pthread_t load;
-    pthread_create(&load, NULL, loader, NULL);
-
-    for (int j = 0; j < CONST_THREE; j++)
+    int index[COUNT_THREAD];
+    while(shop[i] > 0)
     {
-        pthread_join(buyer[j], NULL);
-        pthread_cancel(buyer[j]);
+        for ( i = 0; i < CONST_THREE; i++)
+        {
+            index[i] = i + 1;
+            if (pthread_create(&buyer[i], NULL, &func, &index[i]) != 0)
+            {
+                printf("Failed to create tread[%ld]\n", i);
+            }
+        }
+        pthread_create(&load, NULL, loader, NULL);
+        for (i = 0; i < CONST_THREE; i++)
+        {
+            if (pthread_join(buyer[i], NULL) != 0)
+            {
+                printf("Failed to join thread[%ld]\n", i);
+            }
+        }
     }
     pthread_cancel(load);
+    pthread_mutex_destroy(&mutex[i]);
     return 0;
 }
