@@ -1,2 +1,2 @@
 all:
-	gcc -Werror -Wall store1.c -o store1 -pthread
+	gcc -Werror -Wall store.c -o build/store -pthread

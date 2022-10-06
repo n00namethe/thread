@@ -7,11 +7,11 @@
 #define SHOP_SIZE 1000
 #define LOAD_SIZE 2000
 #define NUM_OF_MASSIV_SHOP 5
-#define COUNT_STORE 10000
-#define COUNT_BUYER 25000
-#define SLEEP_TIMER_ZEROSHOP 5
-#define USLEEP_TIMER_SHOP 200000
-#define SLEEP_TIMER_LOADER 2
+#define AMOUNT_STORE 10000
+#define CART_BUYER 25000
+#define SLEEP_TIMER_EMPTY_SHOP 5000000
+#define SLEEP_TIMER_SHOP 200000
+#define SLEEP_TIMER_LOADER 2000000
 
 pthread_mutex_t mutex[NUM_OF_MASSIV_SHOP];
 pthread_mutex_t mutex_loader = PTHREAD_MUTEX_INITIALIZER;
@@ -22,8 +22,8 @@ int init(void)
 {   
     for (int i = 0; i < NUM_OF_MASSIV_SHOP; i++)
     {
-        shop[i] = COUNT_STORE;
-        printf("init shop[%d] = %d\n", i, COUNT_STORE);
+        shop[i] = AMOUNT_STORE;
+        printf("init shop[%d] = %d\n", i, AMOUNT_STORE);
         if (pthread_mutex_init(&mutex[i], NULL) != 0)
         {
             perror("mutex[%d] don't init\n");
@@ -38,17 +38,17 @@ void *func(void*arg)
     int *i = (int*)arg;
     printf("Я поток № %d зашел в func\n", *i);
     int buyer_size = 0;
-    while(buyer_size < COUNT_BUYER)
+    while(buyer_size < CART_BUYER)
     {
         for (int j = 0; j < NUM_OF_MASSIV_SHOP; j++)
         {
             if (pthread_mutex_trylock(&mutex[j]) == 0)
             {
-                if (shop[j] - SHOP_SIZE < 0)
+                if (shop[j] < SHOP_SIZE)
                 {
-                    printf("thread[%d] get zero shop[%d] = %d\n", *i, j, shop[j]);
+                    printf("thread[%d] get empty shop[%d] = %d\n", *i, j, shop[j]);
                     pthread_mutex_unlock(&mutex[j]);
-                    sleep(SLEEP_TIMER_ZEROSHOP);
+                    usleep(SLEEP_TIMER_EMPTY_SHOP);
                 }
                 else
                 {
@@ -57,8 +57,8 @@ void *func(void*arg)
                     printf("buyer[%d] get from shop[%d] = %d\n", *i, j, buyer_size);
                     printf("thread №%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
                     pthread_mutex_unlock(&mutex[j]);
-                    usleep(USLEEP_TIMER_SHOP);
-                    if (buyer_size == COUNT_BUYER)
+                    usleep(SLEEP_TIMER_SHOP);
+                    if (buyer_size == CART_BUYER)
                     {
                         printf("Баер[%d] наполнился, завершаем\n", *i);
                         break;
@@ -68,7 +68,7 @@ void *func(void*arg)
             else
             {
                 printf("this shop[%d] don't available for buyer, go next..\n", j);
-                sleep(SLEEP_TIMER_ZEROSHOP);
+                usleep(SLEEP_TIMER_SHOP);
             }
         }
     }
@@ -86,7 +86,7 @@ void *loader()
                 shop[j] += LOAD_SIZE;
                 printf("shop[%d] + load = %d\n", j, shop[j]);
                 pthread_mutex_unlock(&mutex_loader);
-                sleep(SLEEP_TIMER_LOADER);
+                usleep(SLEEP_TIMER_LOADER);
             }
             else
             {
