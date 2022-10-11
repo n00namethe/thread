@@ -58,7 +58,7 @@ void *func(void*arg)
                     printf("thread №%d.\t shop[%d]\t = \t%d\n", *i, j, shop[j]);
                     pthread_mutex_unlock(&mutex[j]);
                     usleep(SLEEP_TIMER_SHOP);
-                    if (buyer_size == CART_BUYER)
+                    if (buyer_size >= CART_BUYER)
                     {
                         printf("Баер[%d] наполнился, завершаем\n", *i);
                         break;
